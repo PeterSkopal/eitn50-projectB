@@ -23,8 +23,8 @@ import org.bouncycastle.jce.spec.ECParameterSpec;
 
 public class DiffieHellman {
 	
-	public static byte[] iv = new SecureRandom().generateSeed(8);
-	 
+	public static byte[] iv = new SecureRandom().generateSeed(16);
+//	public static byte[] iv;
 public static KeyPair generateKeys(){
 	Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
 	ECParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec("prime192v1");
@@ -32,7 +32,7 @@ public static KeyPair generateKeys(){
 	
 	try{
 	g = KeyPairGenerator.getInstance("ECDSA", "BC");
-	g.initialize(ecSpec, new SecureRandom());
+	g.initialize(ecSpec);
 	KeyPair pair = g.generateKeyPair();
 	return pair;
 	
@@ -46,11 +46,10 @@ public static KeyPair generateKeys(){
 	        try {
 	            KeyAgreement keyAgreement = KeyAgreement.getInstance("ECDH", "BC");
 	            keyAgreement.init(privateKey);
-	            keyAgreement.doPhase(publicKey, true);
-
-	            SecretKey key = keyAgreement.generateSecret("DES");
-	     
-	            return key;
+	            keyAgreement.doPhase(publicKey, true); 
+	            byte[] rawValue = keyAgreement.generateSecret();
+	            SecretKey secret = new SecretKeySpec(rawValue, 0, 16, "AES");
+	            return secret;
 	        } catch (Exception e) {
 	            // TODO Auto-generated catch block
 	            ((Throwable) e).printStackTrace();
@@ -73,7 +72,7 @@ public static KeyPair generateKeys(){
 	 public static String encryptString(SecretKey key, String plainText) {
 	        try {
 	            IvParameterSpec ivSpec = new IvParameterSpec(iv);
-	            Cipher cipher = Cipher.getInstance("DES/CBC/PKCS5Padding", "BC");
+	            Cipher cipher = Cipher.getInstance("AES/CTR/NoPadding", "BC");
 	            byte[] plainTextBytes = plainText.getBytes("UTF-8");
 	            byte[] cipherText;
 
@@ -95,7 +94,7 @@ public static KeyPair generateKeys(){
 	            Key decryptionKey = new SecretKeySpec(key.getEncoded(),
 	                    key.getAlgorithm());
 	            IvParameterSpec ivSpec = new IvParameterSpec(iv2);
-	            Cipher cipher = Cipher.getInstance("DES/CBC/PKCS5Padding", "BC");
+	            Cipher cipher = Cipher.getInstance("AES/CTR/NoPadding", "BC");
 	            byte[] cipherTextBytes = hexToBytes(cipherText);
 	            byte[] plainText;
 	            cipher.init(Cipher.DECRYPT_MODE, decryptionKey, ivSpec);

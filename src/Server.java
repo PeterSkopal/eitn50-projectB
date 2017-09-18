@@ -3,6 +3,7 @@ import java.io.*;
 import java.net.*;
 import java.security.KeyFactory;
 import java.security.KeyPair;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.Security;
@@ -63,6 +64,7 @@ public class Server {
 			
 			sendPublicKey(sendSock, keyPair.getPublic(), host,runPort);
 			commonSecret = DiffieHellman.generateSharedSecret(keyPair.getPrivate(), clientPublicKey);
+			System.out.println(commonSecret);
 		} catch (IOException e) {
 			System.err.println("IOException " + e);
 		}
@@ -83,16 +85,31 @@ public class Server {
 			
 			String clientData = null;
 			String clientIv = null;
+			String clientHash = null;
+			String completePackage = null;
 			
 			for(String parameter : tokens){
 				if(parameter.startsWith("iv-")){
 					clientIv = parameter.substring("iv-".length());
-					System.out.println("Detta Šr iv: " + parameter.substring("iv-".length()));	
+					System.out.println("This is iv: " + parameter.substring("iv-".length()));	
+					completePackage += ":+" + parameter;
 				}else if(parameter.startsWith("data-")){
 					clientData = parameter.substring("data-".length());
-					System.out.println("Detta Šr data: " + parameter.substring("data-".length()));
-				}else{
-					
+					System.out.println("This is data: " + parameter.substring("data-".length()));
+					completePackage += ":+" + parameter;
+				}else if(parameter.startsWith("hash-")){
+					clientHash = parameter.substring("hash-".length());
+					try {
+						MessageDigest digest = MessageDigest.getInstance("SHA-256");
+						byte[] hash = digest.digest(completePackage.getBytes());
+						if (hash.toString().equals(parameter.substring("hash-".length()))) {
+							System.out.println("Integrity check positive");
+						} else {
+							System.out.println("Integrity check negative. Throwing package away.");							
+						}
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
 				}
 			}
 			System.out.println(clientIv.getBytes().length);
