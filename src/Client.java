@@ -24,6 +24,7 @@ public class Client {
 		DatagramSocket sendSock = null;
 		int recPort = 7778;
 		int runPort = 7777;
+		int seq = 12123;
 		String s;
 		String serverPublicKey;
 		DiffieHellman difHel = new DiffieHellman();
@@ -69,26 +70,26 @@ public class Client {
 					System.out.println("Enter message to send : ");
 
 					s = (String) cin.readLine();
-					String b = DiffieHellman.encryptString(commonSecret, s);
-					String send = new String("data-" + b + ":iv-");
+					String send = new String("data-" + s + ":::seq-" + seq++);
+					
 					byte[] sendByte = send.getBytes("UTF-8");
-					byte[] iv = difHel.getIv();
-					// Adding sendByte and iv together to one byte array
-					byte[] destination = Utility.concatArray(sendByte, iv);
 					
 					MessageDigest digest = MessageDigest.getInstance("SHA-256");
-					System.out.println(destination);
 					
-					byte[] hash = digest.digest(destination);
-					byte[] hashMessage = ":hash-".getBytes("UTF-8");			
-					System.out.println("Hashing the following:\t" + new String(destination, "UTF-8"));
+					System.out.println("Hashing the following:\t" + new String(sendByte, "UTF-8"));
+					byte[] hash = digest.digest(sendByte);
+					byte[] hashMessage = ":::hash-".getBytes("UTF-8");			
 					// Making and hash byte array
 					byte[] hashPack = Utility.concatArray(hashMessage, hash);
-					
+					System.out.println(new String(hashPack, "UTF-8"));
 					// Making complete package by adding destination and hash 
-					byte[] pack = Utility.concatArray(destination, hashPack);
-					System.out.println("Complete Transmit:\t" + new String(pack, "UTF-8"));
-					DatagramPacket dp = new DatagramPacket(pack, pack.length, host, runPort);
+					byte[] pack = Utility.concatArray(sendByte, hashPack);
+					String encrypted = DiffieHellman.encryptString(commonSecret, new String(pack, "UTF-8"));
+					
+					byte[] iv = Utility.concatArray(":::iv-".getBytes(), difHel.getIv());
+					byte[] completePack = Utility.concatArray(encrypted.getBytes(), iv);
+					System.out.println("Complete Transmit:\t" + new String(completePack, "UTF-8"));
+					DatagramPacket dp = new DatagramPacket(completePack, completePack.length, host, runPort);
 					sendSock.send(dp);
 				} catch (Exception e) {
 					e.printStackTrace();

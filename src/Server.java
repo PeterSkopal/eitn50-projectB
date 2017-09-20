@@ -10,6 +10,7 @@ import java.security.Security;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
 import java.util.Arrays;
 
 import javax.crypto.SecretKey;
@@ -19,7 +20,7 @@ import org.bouncycastle.util.encoders.Base64;
 
 public class Server {
 
-	public static void main(String args[]) {
+	public static void main(String args[]) throws Exception {
 		Security.addProvider(new BouncyCastleProvider());
 		DatagramSocket sendSock = null;
 		DatagramSocket recSock = null;
@@ -27,6 +28,7 @@ public class Server {
 		int runPort = 7778;
 		PublicKey clientPublicKey;
 		SecretKey commonSecret = null;
+		ArrayList<Integer> seqNbrs = new ArrayList<Integer>();
 
 		DiffieHellman difHel = new DiffieHellman();
 
@@ -64,7 +66,6 @@ public class Server {
 
 			sendPublicKey(sendSock, keyPair.getPublic(), host, runPort);
 			commonSecret = DiffieHellman.generateSharedSecret(keyPair.getPrivate(), clientPublicKey);
-			System.out.println(commonSecret);
 		} catch (IOException e) {
 			System.err.println("IOException " + e);
 		}
@@ -78,26 +79,35 @@ public class Server {
 				e.printStackTrace();
 			}
 			byte[] data = incoming.getData();
-
 			String s = new String(data, 0, incoming.getLength());
-			String delims = ":+";
-			String[] tokens = s.split(delims);
+			String[] arr = s.split(":::iv-");
+			String clientIv = arr[1];
+			String deData = DiffieHellman.decryptString(commonSecret, arr[0], clientIv.getBytes());
+			String delims = ":::+";
+			String[] tokens = deData.split(delims);
 			
-			System.out.println("The whole package" + s);
+			System.out.println("Recieved Package:\t" + s);
 			
 			String clientData = null;
-			String clientIv = null;
+			String clientSeq = null;
 			String clientHash = null;
 			String completePackage = "";
 
 			for (String parameter : tokens) {
 				System.out.println("parameter:\t" + parameter);
-				if (parameter.startsWith("iv-")) {
-					clientIv = parameter.substring("iv-".length());
+				if (parameter.startsWith("seq-")) {
+					clientSeq = parameter.substring("seq-".length());
+					if (seqNbrs.contains(Integer.parseInt(clientSeq))) {
+						System.out.println("This sequence number as already been used. Disconnecting Client");
+						throw new Exception();
+					}
+					System.out.println(Integer.parseInt(clientSeq));
+					seqNbrs.add(Integer.parseInt(clientSeq));
 					completePackage += parameter;
 				} else if (parameter.startsWith("data-")) {
 					clientData = parameter.substring("data-".length());
-					completePackage += parameter + ":";
+					completePackage += parameter + ":::";
+				
 				} else if (parameter.startsWith("hash-")) {
 					clientHash = parameter.substring("hash-".length());
 					try {
@@ -107,31 +117,22 @@ public class Server {
 						byte[] hashbyte = completePackage.getBytes(); 
 						byte[] hash = digest.digest(hashbyte);
 
-						System.out.println(completePackage);
-						System.out.println(hashbyte);
+						String hashString = new String(hash, "UTF-8");
+						System.out.println("Servers Hash:\t" + hashString);
+						System.out.println("Clients Hash:\t" + clientHash);
 						
-						System.out.println("Detta är hash: " + hash);
-						
-						String hashString = new String(hash);
-						System.out.println("Detta är Hashstring: " + hashString);
-						System.out.println("Detta är ClientHash: " + clientHash);
-						
-						if (hashString.equals(parameter.substring("hash-".length()))) {
+						if (hashString.equals(clientHash)) {
 							System.out.println("Integrity check positive");
 						} else {
-							System.out.println("Integrity check negative. Throwing package away.");
+							System.out.println("Integrity check negative. Disconnecting Client.");
+							throw new Exception();
 						}
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
 				}
 			}
-			try {
-				System.out.println(clientIv.getBytes().length);
-				System.out.println(DiffieHellman.decryptString(commonSecret, clientData, clientIv.getBytes()));				
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+			System.out.println("Client Says:\t" + clientData);
 		}
 	}
 
