@@ -74,9 +74,7 @@ public class Client {
 					byte[] sendByte = send.getBytes("UTF-8");
 					byte[] iv = difHel.getIv();
 					// Adding sendByte and iv together to one byte array
-					byte[] destination = new byte[sendByte.length + iv.length];
-					System.arraycopy(sendByte, 0, destination, 0, sendByte.length);
-					System.arraycopy(iv, 0, destination, sendByte.length, iv.length);
+					byte[] destination = Utility.concatArray(sendByte, iv);
 					
 					MessageDigest digest = MessageDigest.getInstance("SHA-256");
 					System.out.println(destination);
@@ -85,14 +83,10 @@ public class Client {
 					byte[] hashMessage = ":hash-".getBytes("UTF-8");			
 					System.out.println("Hashing the following:\t" + new String(destination, "UTF-8"));
 					// Making and hash byte array
-					byte[] hashPack = new byte[hashMessage.length + hash.length];
-					System.arraycopy(hashMessage, 0, hashPack, 0, hashMessage.length);
-					System.arraycopy(hash, 0, hashPack, hashMessage.length, hash.length);
+					byte[] hashPack = Utility.concatArray(hashMessage, hash);
 					
 					// Making complete package by adding destination and hash 
-					byte[] pack = new byte[destination.length + hashPack.length];
-					System.arraycopy(destination, 0, pack, 0, destination.length);
-					System.arraycopy(hashPack, 0, pack, destination.length, hashPack.length);
+					byte[] pack = Utility.concatArray(destination, hashPack);
 					System.out.println("Complete Transmit:\t" + new String(pack, "UTF-8"));
 					DatagramPacket dp = new DatagramPacket(pack, pack.length, host, runPort);
 					sendSock.send(dp);
