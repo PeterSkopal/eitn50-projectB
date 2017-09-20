@@ -82,7 +82,9 @@ public class Server {
 			String s = new String(data, 0, incoming.getLength());
 			String delims = ":+";
 			String[] tokens = s.split(delims);
-
+			
+			System.out.println("The whole package" + s);
+			
 			String clientData = null;
 			String clientIv = null;
 			String clientHash = null;
@@ -107,8 +109,13 @@ public class Server {
 
 						System.out.println(completePackage);
 						System.out.println(hashbyte);
-
-						String hashString = new String(hash, "UTF8");
+						
+						System.out.println("Detta är hash: " + hash);
+						
+						String hashString = new String(hash);
+						System.out.println("Detta är Hashstring: " + hashString);
+						System.out.println("Detta är ClientHash: " + clientHash);
+						
 						if (hashString.equals(parameter.substring("hash-".length()))) {
 							System.out.println("Integrity check positive");
 						} else {
@@ -149,11 +156,11 @@ public class Server {
 	}
 
 	public static void sendHello(DatagramSocket sendSock, InetAddress host, int runPort) {
-		byte[] helloCl = "Hello Client Handshake".getBytes();
-		DatagramPacket helloClient = new DatagramPacket(helloCl, helloCl.length, host, runPort);
 		try {
+			byte[] helloCl = "Hello Client Handshake".getBytes("UTF-8");			
+			DatagramPacket helloClient = new DatagramPacket(helloCl, helloCl.length, host, runPort);
 			sendSock.send(helloClient);
-		} catch (IOException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}

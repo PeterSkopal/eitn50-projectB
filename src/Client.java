@@ -66,13 +66,12 @@ public class Client {
 			while (true) {
 				try {
 					// take input and send the packet
-					System.out.println(commonSecret.toString());
 					System.out.println("Enter message to send : ");
 
 					s = (String) cin.readLine();
 					String b = DiffieHellman.encryptString(commonSecret, s);
 					String send = new String("data-" + b + ":iv-");
-					byte[] sendByte = send.getBytes();
+					byte[] sendByte = send.getBytes("UTF-8");
 					byte[] iv = difHel.getIv();
 					// Adding sendByte and iv together to one byte array
 					byte[] destination = new byte[sendByte.length + iv.length];
@@ -81,9 +80,10 @@ public class Client {
 					
 					MessageDigest digest = MessageDigest.getInstance("SHA-256");
 					System.out.println(destination);
+					
 					byte[] hash = digest.digest(destination);
-					byte[] hashMessage = ":hash-".getBytes();			
-					System.out.println("Hashing the following:\t" + new String(destination, "UTF8"));
+					byte[] hashMessage = ":hash-".getBytes("UTF-8");			
+					System.out.println("Hashing the following:\t" + new String(destination, "UTF-8"));
 					// Making and hash byte array
 					byte[] hashPack = new byte[hashMessage.length + hash.length];
 					System.arraycopy(hashMessage, 0, hashPack, 0, hashMessage.length);
@@ -93,7 +93,7 @@ public class Client {
 					byte[] pack = new byte[destination.length + hashPack.length];
 					System.arraycopy(destination, 0, pack, 0, destination.length);
 					System.arraycopy(hashPack, 0, pack, destination.length, hashPack.length);
-					System.out.println("Complete Transmit:\t" + new String(pack, "UTF8"));
+					System.out.println("Complete Transmit:\t" + new String(pack, "UTF-8"));
 					DatagramPacket dp = new DatagramPacket(pack, pack.length, host, runPort);
 					sendSock.send(dp);
 				} catch (Exception e) {
