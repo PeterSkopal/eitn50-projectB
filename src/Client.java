@@ -1,6 +1,5 @@
 import java.io.*;
 import java.net.*;
-import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.security.KeyFactory;
 import java.security.KeyPair;
@@ -72,30 +71,30 @@ public class Client {
 
 					s = (String) cin.readLine();
 					String b = DiffieHellman.encryptString(commonSecret, s);
-
 					String send = new String("data-" + b + ":iv-");
 					byte[] sendByte = send.getBytes();
 					byte[] iv = difHel.getIv();
-					System.out.println(iv.length);
+					// Adding sendByte and iv together to one byte array
 					byte[] destination = new byte[sendByte.length + iv.length];
-
 					System.arraycopy(sendByte, 0, destination, 0, sendByte.length);
 					System.arraycopy(iv, 0, destination, sendByte.length, iv.length);
 					
 					MessageDigest digest = MessageDigest.getInstance("SHA-256");
+					System.out.println(destination);
 					byte[] hash = digest.digest(destination);
 					byte[] hashMessage = ":hash-".getBytes();			
+					System.out.println("Hashing the following:\t" + new String(destination, "UTF8"));
+					// Making and hash byte array
 					byte[] hashPack = new byte[hashMessage.length + hash.length];
-					
 					System.arraycopy(hashMessage, 0, hashPack, 0, hashMessage.length);
 					System.arraycopy(hash, 0, hashPack, hashMessage.length, hash.length);
 					
+					// Making complete package by adding destination and hash 
 					byte[] pack = new byte[destination.length + hashPack.length];
-
 					System.arraycopy(destination, 0, pack, 0, destination.length);
 					System.arraycopy(hashPack, 0, pack, destination.length, hashPack.length);
-					
-					DatagramPacket dp = new DatagramPacket(destination, destination.length, host, runPort);
+					System.out.println("Complete Transmit:\t" + new String(pack, "UTF8"));
+					DatagramPacket dp = new DatagramPacket(pack, pack.length, host, runPort);
 					sendSock.send(dp);
 				} catch (Exception e) {
 					e.printStackTrace();

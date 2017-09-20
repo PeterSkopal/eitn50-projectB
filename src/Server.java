@@ -29,95 +29,106 @@ public class Server {
 		SecretKey commonSecret = null;
 
 		DiffieHellman difHel = new DiffieHellman();
-		
+
 		KeyPair keyPair = difHel.generateKeys();
-		
+
 		try {
 			sendSock = new DatagramSocket();
 			recSock = new DatagramSocket(recPort);
 			InetAddress host = InetAddress.getByName("localhost");
-			
+
 			byte[] buffer = new byte[65536];
-			
+
 			byte[] publicKey = (byte[]) keyPair.getPublic().getEncoded();
 			DatagramPacket incoming = new DatagramPacket(buffer, buffer.length);
-			
+
 			DatagramPacket serverPublicKey = new DatagramPacket(publicKey, publicKey.length, host, runPort);
-			
+
 			System.out.println("Server listening on: " + host.toString() + ":" + recPort);
 			System.out.println("Server running on: " + host.toString() + ":" + runPort);
 			System.out.println("Server socket created. Waiting for incoming data...");
 
 			while (true) {
-				if(reciveHello(recSock)){
+				if (reciveHello(recSock)) {
 					break;
 				}
 			}
-			
-			sendHello(sendSock,host,runPort);
-				
-			while(true){
-				if((clientPublicKey = recieveClientKey(recSock,difHel)) != null){
+
+			sendHello(sendSock, host, runPort);
+
+			while (true) {
+				if ((clientPublicKey = recieveClientKey(recSock, difHel)) != null) {
 					break;
 				}
 			}
-			
-			sendPublicKey(sendSock, keyPair.getPublic(), host,runPort);
+
+			sendPublicKey(sendSock, keyPair.getPublic(), host, runPort);
 			commonSecret = DiffieHellman.generateSharedSecret(keyPair.getPrivate(), clientPublicKey);
 			System.out.println(commonSecret);
 		} catch (IOException e) {
 			System.err.println("IOException " + e);
 		}
-		
+
 		byte[] buffer = new byte[65536];
 		DatagramPacket incoming = new DatagramPacket(buffer, buffer.length);
-		while(true){
+		while (true) {
 			try {
 				recSock.receive(incoming);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 			byte[] data = incoming.getData();
-			
+
 			String s = new String(data, 0, incoming.getLength());
 			String delims = ":+";
 			String[] tokens = s.split(delims);
-			
+
 			String clientData = null;
 			String clientIv = null;
 			String clientHash = null;
-			String completePackage = null;
-			
-			for(String parameter : tokens){
-				if(parameter.startsWith("iv-")){
+			String completePackage = "";
+
+			for (String parameter : tokens) {
+				System.out.println("parameter:\t" + parameter);
+				if (parameter.startsWith("iv-")) {
 					clientIv = parameter.substring("iv-".length());
-					System.out.println("This is iv: " + parameter.substring("iv-".length()));	
-					completePackage += ":+" + parameter;
-				}else if(parameter.startsWith("data-")){
+					completePackage += parameter;
+				} else if (parameter.startsWith("data-")) {
 					clientData = parameter.substring("data-".length());
-					System.out.println("This is data: " + parameter.substring("data-".length()));
-					completePackage += ":+" + parameter;
-				}else if(parameter.startsWith("hash-")){
+					completePackage += parameter + ":";
+				} else if (parameter.startsWith("hash-")) {
 					clientHash = parameter.substring("hash-".length());
 					try {
 						MessageDigest digest = MessageDigest.getInstance("SHA-256");
-						byte[] hash = digest.digest(completePackage.getBytes());
-						if (hash.toString().equals(parameter.substring("hash-".length()))) {
+						
+						System.out.println("Hashing the following:\t" + completePackage);
+						byte[] hashbyte = completePackage.getBytes(); 
+						byte[] hash = digest.digest(hashbyte);
+
+						System.out.println(completePackage);
+						System.out.println(hashbyte);
+
+						String hashString = new String(hash, "UTF8");
+						if (hashString.equals(parameter.substring("hash-".length()))) {
 							System.out.println("Integrity check positive");
 						} else {
-							System.out.println("Integrity check negative. Throwing package away.");							
+							System.out.println("Integrity check negative. Throwing package away.");
 						}
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
 				}
 			}
-			System.out.println(clientIv.getBytes().length);
-			System.out.println(DiffieHellman.decryptString(commonSecret,clientData, clientIv.getBytes()));
+			try {
+				System.out.println(clientIv.getBytes().length);
+				System.out.println(DiffieHellman.decryptString(commonSecret, clientData, clientIv.getBytes()));				
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 		}
-	}	
-	
-	public static boolean reciveHello(DatagramSocket recSock){
+	}
+
+	public static boolean reciveHello(DatagramSocket recSock) {
 		byte[] buffer = new byte[65536];
 		DatagramPacket incoming = new DatagramPacket(buffer, buffer.length);
 		try {
@@ -128,15 +139,16 @@ public class Server {
 		}
 		byte[] data = incoming.getData();
 		String s = new String(data, 0, incoming.getLength());
-		
+
 		if (s.equals("Hello Server Handshake")) {
-			System.out.println(incoming.getAddress().getHostAddress() + " : " + incoming.getPort() + " - " + s + "\tSUCCESS");
+			System.out.println(
+					incoming.getAddress().getHostAddress() + " : " + incoming.getPort() + " - " + s + "\tSUCCESS");
 			return true;
-		} 
+		}
 		return false;
 	}
-	
-	public static void sendHello(DatagramSocket sendSock, InetAddress host, int runPort){
+
+	public static void sendHello(DatagramSocket sendSock, InetAddress host, int runPort) {
 		byte[] helloCl = "Hello Client Handshake".getBytes();
 		DatagramPacket helloClient = new DatagramPacket(helloCl, helloCl.length, host, runPort);
 		try {
@@ -145,12 +157,12 @@ public class Server {
 			e.printStackTrace();
 		}
 	}
-	
-	public static PublicKey recieveClientKey(DatagramSocket recSock,DiffieHellman difHel){
+
+	public static PublicKey recieveClientKey(DatagramSocket recSock, DiffieHellman difHel) {
 		System.out.println("Recieving Public Key from Client.");
 		byte[] buffer = new byte[65536];
 		DatagramPacket incoming = new DatagramPacket(buffer, buffer.length);
-		
+
 		try {
 			recSock.receive(incoming);
 		} catch (IOException e) {
@@ -158,23 +170,23 @@ public class Server {
 		}
 		byte[] data = incoming.getData();
 		byte[] serverKeyByte = new byte[incoming.getLength()];
-		
-		System.arraycopy(data, 0, serverKeyByte,0, incoming.getLength());
-		
+
+		System.arraycopy(data, 0, serverKeyByte, 0, incoming.getLength());
+
 		PublicKey serverPublicKey = DiffieHellman.PublicKeyFromByte(serverKeyByte);
-		
-		if(serverPublicKey != null){
+
+		if (serverPublicKey != null) {
 			return serverPublicKey;
-		}else{
+		} else {
 			return null;
 		}
 	}
-	
-	public static void sendPublicKey(DatagramSocket sendSock, PublicKey pubKey,InetAddress host, int runPort){
+
+	public static void sendPublicKey(DatagramSocket sendSock, PublicKey pubKey, InetAddress host, int runPort) {
 		byte[] publicKey = (byte[]) pubKey.getEncoded();
 
 		try {
-			sendSock.send(new DatagramPacket(publicKey, publicKey.length, host, runPort));	
+			sendSock.send(new DatagramPacket(publicKey, publicKey.length, host, runPort));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
